@@ -41,7 +41,10 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH=true
 ```
+
+Set `NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH=true` for MVP testing if you have not created vendor Supabase Auth users yet. Remove it or set it to `false` before real vendor use.
 
 The QR code uses the current browser origin in the dashboard, so production QR links automatically use the deployed domain. `NEXT_PUBLIC_SITE_URL` is still useful for future server-rendered URLs or integrations.
 

@@ -9,6 +9,10 @@ type CookieToSet = {
 };
 
 export async function proxy(request: NextRequest) {
+  if (process.env.NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH === "true") {
+    return NextResponse.next();
+  }
+
   const hasEnv = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   if (!hasEnv || !request.nextUrl.pathname.startsWith("/dashboard")) {
     return NextResponse.next();
