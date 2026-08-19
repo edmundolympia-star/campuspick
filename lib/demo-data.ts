@@ -1,6 +1,7 @@
 import type { DemoState } from "./types";
+import { todayInPickupZone } from "./order-dates";
 
-export const todayKey = () => new Date().toISOString().slice(0, 10);
+export const todayKey = () => todayInPickupZone();
 
 export const initialState: DemoState = {
   vendors: [

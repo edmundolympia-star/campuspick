@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { todayInPickupZone } from "./order-dates";
 import type { DemoState, MenuItem, Order, OrderItem, PickupSlot, Vendor } from "./types";
 
 export function hasCloudEnv() {
@@ -74,7 +75,9 @@ export async function loadCloudState(slug = "riceball-campus"): Promise<DemoStat
         .from("orders")
         .select("*, order_items(*)")
         .eq("vendor_id", vendor.id)
-        .gte("created_at", new Date().toISOString().slice(0, 10))
+        .gte("order_date", todayInPickupZone())
+        .limit(300)
+        .order("order_date")
         .order("pickup_time")
     ]);
 
@@ -91,6 +94,7 @@ export async function loadCloudState(slug = "riceball-campus"): Promise<DemoStat
     customerName: order.customer_name,
     phoneLast4: order.phone_last4,
     pickupTime: String(order.pickup_time).slice(0, 5),
+    pickupDate: order.order_date,
     paymentMethod: order.payment_method,
     status: order.status,
     totalAmount: Number(order.total_amount),

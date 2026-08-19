@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { nextPickupDate } from "@/lib/order-dates";
 
 export async function POST(request: Request) {
   const supabase = createSupabaseAdmin();
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
     p_vendor_slug: body.vendorSlug,
     p_customer_name: body.customerName,
     p_phone_last4: body.phoneLast4,
+    p_pickup_date: nextPickupDate(),
     p_pickup_time: body.pickupTime,
     p_payment_method: body.paymentMethod,
     p_items: items

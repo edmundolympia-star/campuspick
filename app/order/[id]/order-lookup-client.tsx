@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { cancelOrder, findOrder, loadState } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
 import { cancelCloudOrder, lookupCloudOrder } from "@/lib/cloud-client";
+import { formatPickupDate } from "@/lib/order-dates";
 import type { Order, Vendor } from "@/lib/types";
 
 export function OrderLookupClient({ id }: { id: string }) {
@@ -88,7 +89,7 @@ export function OrderLookupClient({ id }: { id: string }) {
           </div>
           <div className="rounded-2xl bg-mist p-3">
             <p className="text-neutral-500">取餐时间</p>
-            <strong>{order.pickupTime}</strong>
+            <strong>{formatPickupDate(order.pickupDate)} {order.pickupTime}</strong>
           </div>
         </div>
         <div className="space-y-3 py-5">

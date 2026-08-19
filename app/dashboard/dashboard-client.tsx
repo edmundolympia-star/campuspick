@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { activeOrders, loadState, remainingForItem, updateOrderStatus } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
 import { fetchCloudState, updateCloudOrderStatus } from "@/lib/cloud-client";
+import { addDaysToDateString, formatPickupDate, nextPickupDate, todayInPickupZone } from "@/lib/order-dates";
 import type { DemoState, OrderStatus } from "@/lib/types";
 
 const statuses: Array<"all" | OrderStatus> = ["all", "pending", "ready", "collected", "cancelled"];
@@ -15,6 +16,7 @@ export function DashboardClient() {
   const [state, setState] = useState<DemoState>(() => loadState());
   const [status, setStatus] = useState<"all" | OrderStatus>("all");
   const [time, setTime] = useState("all");
+  const [date, setDate] = useState(() => nextPickupDate());
   const [notice, setNotice] = useState("");
   const [cloudMode, setCloudMode] = useState(false);
 
@@ -33,15 +35,22 @@ export function DashboardClient() {
   }, []);
 
   const vendor = state.vendors[0];
+  const dateOptions = useMemo(() => {
+    const today = todayInPickupZone();
+    const base = [today, addDaysToDateString(today, 1), addDaysToDateString(today, 2), addDaysToDateString(today, 3)];
+    const fromOrders = state.orders.filter((order) => order.vendorId === vendor.id).map((order) => order.pickupDate);
+    return Array.from(new Set([...base, ...fromOrders])).sort();
+  }, [state.orders, vendor.id]);
   const orders = state.orders
     .filter((order) => order.vendorId === vendor.id)
+    .filter((order) => order.pickupDate === date)
     .filter((order) => status === "all" || order.status === status)
     .filter((order) => time === "all" || order.pickupTime === time)
     .sort((a, b) => a.pickupTime.localeCompare(b.pickupTime) || a.orderNumber.localeCompare(b.orderNumber));
-  const active = activeOrders(state, vendor.id);
+  const active = activeOrders(state, vendor.id, date);
   const itemsReserved = active.flatMap((order) => order.items).reduce((sum, line) => sum + line.quantity, 0);
   const revenue = active.reduce((sum, order) => sum + order.totalAmount, 0);
-  const remaining = state.menuItems.filter((item) => item.vendorId === vendor.id).reduce((sum, item) => sum + remainingForItem(state, item), 0);
+  const remaining = state.menuItems.filter((item) => item.vendorId === vendor.id).reduce((sum, item) => sum + remainingForItem(state, item, date), 0);
   const times = useMemo(() => ["all", ...state.pickupSlots.filter((slot) => slot.vendorId === vendor.id).map((slot) => slot.pickupTime)], [state, vendor.id]);
   const publicUrl = typeof window === "undefined" ? `/vendor/${vendor.slug}` : `${window.location.origin}/vendor/${vendor.slug}`;
 
@@ -77,7 +86,7 @@ export function DashboardClient() {
       {notice && <div className="fixed right-4 top-4 z-50 rounded-full bg-ink px-5 py-3 text-sm font-black text-paper shadow-soft">{notice}</div>}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ["Today's Orders", String(active.length)],
+          ["Date Orders", String(active.length)],
           ["Items Reserved", String(itemsReserved)],
           ["Remaining Stock", String(remaining)],
           ["Preorder Revenue", formatMoney(revenue)]
@@ -94,9 +103,12 @@ export function DashboardClient() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-black">Today&apos;s Orders</h1>
-              <p className="text-sm text-neutral-500">Sorted by pickup time.</p>
+              <p className="text-sm text-neutral-500">{formatPickupDate(date)} orders, sorted by pickup time.</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <select className="tap rounded-full border border-line bg-white px-3 text-sm font-bold" value={date} onChange={(event) => setDate(event.target.value)}>
+                {dateOptions.map((option) => <option key={option} value={option}>{formatPickupDate(option)}</option>)}
+              </select>
               <select className="tap rounded-full border border-line bg-white px-3 text-sm font-bold" value={time} onChange={(event) => setTime(event.target.value)}>
                 {times.map((slot) => <option key={slot} value={slot}>{slot === "all" ? "All times" : slot}</option>)}
               </select>

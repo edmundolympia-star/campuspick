@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!supabase) return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
 
   const { orderId, orderNumber, phoneLast4 } = await request.json();
-  let query = supabase.from("orders").select("*, order_items(*)").limit(1);
+  let query = supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(1);
   if (orderId) query = query.eq("id", orderId);
   if (orderNumber) query = query.ilike("order_number", orderNumber.trim());
   if (phoneLast4) query = query.eq("phone_last4", phoneLast4);
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     customerName: orderRow.customer_name,
     phoneLast4: orderRow.phone_last4,
     pickupTime: String(orderRow.pickup_time).slice(0, 5),
+    pickupDate: orderRow.order_date,
     paymentMethod: orderRow.payment_method,
     status: orderRow.status,
     totalAmount: Number(orderRow.total_amount),

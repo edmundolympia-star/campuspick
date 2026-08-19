@@ -5,6 +5,7 @@ import { useState } from "react";
 import { findOrderByNumber, loadState } from "@/lib/demo-store";
 import { lookupCloudOrder } from "@/lib/cloud-client";
 import { formatMoney } from "@/lib/demo-data";
+import { formatPickupDate } from "@/lib/order-dates";
 import type { Order, Vendor } from "@/lib/types";
 
 export function OrderSearchClient() {
@@ -78,7 +79,7 @@ export function OrderSearchClient() {
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-2xl bg-mist p-3">
               <p className="text-neutral-500">取餐时间</p>
-              <strong>{order.pickupTime}</strong>
+              <strong>{formatPickupDate(order.pickupDate)} {order.pickupTime}</strong>
             </div>
             <div className="rounded-2xl bg-mist p-3">
               <p className="text-neutral-500">金额</p>

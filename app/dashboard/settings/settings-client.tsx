@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { deletePickupSlot, loadState, slotUsed, updateVendor, upsertPickupSlot } from "@/lib/demo-store";
 import { compressImage } from "@/lib/image-utils";
 import { deleteCloudPickupSlot, fetchCloudState, saveCloudPickupSlot, saveCloudVendor, uploadCloudImage } from "@/lib/cloud-client";
+import { formatPickupDate, nextPickupDate } from "@/lib/order-dates";
 import type { DemoState, PickupSlot, Vendor } from "@/lib/types";
 
 export function SettingsClient() {
@@ -15,6 +16,7 @@ export function SettingsClient() {
   const [maxOrders, setMaxOrders] = useState(20);
   const [notice, setNotice] = useState("");
   const [cloudMode, setCloudMode] = useState(false);
+  const pickupDate = nextPickupDate();
 
   useEffect(() => {
     const refresh = () => setState(loadState());
@@ -168,6 +170,7 @@ export function SettingsClient() {
 
       <section className="rounded-[28px] bg-paper p-5 shadow-sm">
         <h2 className="mb-4 text-2xl font-black">Active schedule</h2>
+        <p className="mb-4 text-sm text-neutral-500">Reservation counts shown for {formatPickupDate(pickupDate)}.</p>
         <div className="space-y-3">
           {slots.map((slot) => (
             <article key={slot.id} className="grid gap-3 rounded-3xl border border-line bg-white p-4 sm:grid-cols-[140px_1fr_120px_52px] sm:items-center">
@@ -178,7 +181,7 @@ export function SettingsClient() {
                 <label className="text-sm font-bold text-neutral-500">Maximum orders
                   <input className="tap mt-1 w-full rounded-2xl border border-line bg-white px-4 text-ink" type="number" value={slot.maxOrders} onChange={(event) => void saveSlot({ ...slot, maxOrders: Number(event.target.value) })} />
                 </label>
-                <p className="mt-1 text-sm text-neutral-500">{slotUsed(state, slot)} active orders currently reserved.</p>
+                <p className="mt-1 text-sm text-neutral-500">{slotUsed(state, slot, pickupDate)} active orders currently reserved.</p>
               </div>
               <label className="flex items-center justify-between rounded-2xl bg-mist px-4 py-3 font-bold">
                 Enabled

@@ -49,6 +49,7 @@ export type Order = {
   customerName: string;
   phoneLast4: string;
   pickupTime: string;
+  pickupDate: string;
   paymentMethod: PaymentMethod;
   status: OrderStatus;
   totalAmount: number;

@@ -1,6 +1,7 @@
 "use client";
 
 import { initialState, todayKey } from "./demo-data";
+import { nextPickupDate } from "./order-dates";
 import type { DemoState, MenuItem, Order, OrderStatus, PaymentMethod, PickupSlot, Vendor } from "./types";
 
 const key = `campuspick-demo-${todayKey()}`;
@@ -25,7 +26,8 @@ export function loadState(): DemoState {
       logoUrl: vendor.logoUrl ?? "",
       duitnowQrUrl: vendor.duitnowQrUrl ?? ""
     })),
-    menuItems: parsed.menuItems.map((item) => ({ ...item, imageUrl: item.imageUrl ?? "" }))
+    menuItems: parsed.menuItems.map((item) => ({ ...item, imageUrl: item.imageUrl ?? "" })),
+    orders: parsed.orders.map((order) => ({ ...order, pickupDate: order.pickupDate ?? todayKey() }))
   };
   window.localStorage.setItem(key, JSON.stringify(migrated));
   return migrated;
@@ -36,8 +38,10 @@ export function saveState(state: DemoState) {
   window.dispatchEvent(new Event("campuspick-state"));
 }
 
-export function activeOrders(state: DemoState, vendorId: string) {
-  return state.orders.filter((order) => order.vendorId === vendorId && order.status !== "cancelled");
+export function activeOrders(state: DemoState, vendorId: string, pickupDate?: string) {
+  return state.orders.filter(
+    (order) => order.vendorId === vendorId && order.status !== "cancelled" && (!pickupDate || order.pickupDate === pickupDate)
+  );
 }
 
 export function findOrder(orderId: string) {
@@ -54,16 +58,16 @@ export function findOrderByNumber(orderNumber: string, phoneLast4: string) {
   );
 }
 
-export function remainingForItem(state: DemoState, item: MenuItem) {
-  const reserved = activeOrders(state, item.vendorId)
+export function remainingForItem(state: DemoState, item: MenuItem, pickupDate?: string) {
+  const reserved = activeOrders(state, item.vendorId, pickupDate)
     .flatMap((order) => order.items)
     .filter((line) => line.menuItemId === item.id)
     .reduce((sum, line) => sum + line.quantity, 0);
   return Math.max(item.dailyStock - reserved, 0);
 }
 
-export function slotUsed(state: DemoState, slot: PickupSlot) {
-  return activeOrders(state, slot.vendorId).filter((order) => order.pickupTime === slot.pickupTime).length;
+export function slotUsed(state: DemoState, slot: PickupSlot, pickupDate?: string) {
+  return activeOrders(state, slot.vendorId, pickupDate).filter((order) => order.pickupTime === slot.pickupTime).length;
 }
 
 export function createOrder(input: {
@@ -75,8 +79,9 @@ export function createOrder(input: {
   paymentMethod: PaymentMethod;
 }): Order {
   const state = loadState();
+  const pickupDate = nextPickupDate();
   const slot = state.pickupSlots.find((item) => item.vendorId === input.vendorId && item.pickupTime === input.pickupTime);
-  if (!slot || !slot.active || slotUsed(state, slot) >= slot.maxOrders) {
+  if (!slot || !slot.active || slotUsed(state, slot, pickupDate) >= slot.maxOrders) {
     throw new Error("这个取餐时间已满，请选择其他时间。");
   }
 
@@ -86,11 +91,11 @@ export function createOrder(input: {
   const items = lines.map(([itemId, quantity]) => {
     const item = state.menuItems.find((menuItem) => menuItem.id === itemId && menuItem.vendorId === input.vendorId);
     if (!item || !item.available) throw new Error("有餐点暂时无法预订。");
-    if (quantity > remainingForItem(state, item)) throw new Error(`${item.chineseName} 库存不足。`);
+    if (quantity > remainingForItem(state, item, pickupDate)) throw new Error(`${item.chineseName} 库存不足。`);
     return { item, quantity };
   });
 
-  const todayOrders = state.orders.filter((order) => order.vendorId === input.vendorId);
+  const todayOrders = state.orders.filter((order) => order.vendorId === input.vendorId && order.pickupDate === pickupDate);
   const vendor = state.vendors.find((item) => item.id === input.vendorId);
   const prefix = vendor?.slug.includes("riceball") ? "RB" : "CP";
   const orderNumber = `${prefix}${String(todayOrders.length + 1).padStart(3, "0")}`;
@@ -111,6 +116,7 @@ export function createOrder(input: {
     customerName: input.customerName,
     phoneLast4: input.phoneLast4,
     pickupTime: input.pickupTime,
+    pickupDate,
     paymentMethod: input.paymentMethod,
     status: "pending",
     totalAmount: orderItems.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),

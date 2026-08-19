@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { createOrder, loadState, remainingForItem, slotUsed } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
 import { createCloudOrder, fetchCloudState } from "@/lib/cloud-client";
+import { formatPickupDate, nextPickupDate, pickupCutoffLabel } from "@/lib/order-dates";
 import type { DemoState, Order, PaymentMethod } from "@/lib/types";
 
 export function StudentOrderClient({ slug }: { slug: string }) {
@@ -36,9 +37,10 @@ export function StudentOrderClient({ slug }: { slug: string }) {
   }, [slug]);
 
   const vendor = state.vendors.find((item) => item.slug === slug) ?? state.vendors[0];
+  const pickupDate = nextPickupDate();
   const menu = state.menuItems.filter((item) => item.vendorId === vendor.id && item.available);
   const slots = state.pickupSlots.filter((item) => item.vendorId === vendor.id && item.active);
-  const remainingTotal = menu.reduce((sum, item) => sum + remainingForItem(state, item), 0);
+  const remainingTotal = menu.reduce((sum, item) => sum + remainingForItem(state, item, pickupDate), 0);
   const total = useMemo(
     () => menu.reduce((sum, item) => sum + (quantities[item.id] ?? 0) * item.price, 0),
     [menu, quantities]
@@ -104,8 +106,8 @@ export function StudentOrderClient({ slug }: { slug: string }) {
         </div>
         <section className="rounded-[28px] bg-white p-5 shadow-soft">
           <div className="flex justify-between border-b border-line pb-4">
-            <span className="text-neutral-500">取餐时间</span>
-            <strong>{order.pickupTime}</strong>
+            <span className="text-neutral-500">取餐日期 / 时间</span>
+            <strong>{formatPickupDate(order.pickupDate)} {order.pickupTime}</strong>
           </div>
           <div className="space-y-3 py-4">
             {order.items.map((item) => (
@@ -156,13 +158,14 @@ export function StudentOrderClient({ slug }: { slug: string }) {
       <header className="px-5 pb-4 pt-6">
         <div className="flex items-center justify-between">
           <span className="text-lg font-black">CampusPick</span>
-          <span className="rounded-full bg-wasabi px-3 py-1 text-sm font-bold">今日剩余 {remainingTotal} 份</span>
+          <span className="rounded-full bg-wasabi px-3 py-1 text-sm font-bold">剩余 {remainingTotal} 份</span>
         </div>
         <section className="mt-5 rounded-[32px] bg-ink p-6 text-paper">
           {vendor.logoUrl && <img src={vendor.logoUrl} alt={vendor.name} className="mb-5 h-36 w-full rounded-3xl object-cover" />}
           <p className="text-sm text-neutral-300">{vendor.name}</p>
-          <h1 className="mt-3 text-3xl font-black leading-tight">{vendor.heroMessage}</h1>
-          <p className="mt-3 text-sm text-neutral-300">{vendor.subtext}</p>
+          <h1 className="mt-3 text-3xl font-black leading-tight">预订 {formatPickupDate(pickupDate)} 取餐</h1>
+          <p className="mt-3 text-sm text-neutral-300">{pickupCutoffLabel()}；超过 6 点自动预订后天。</p>
+          <p className="mt-2 text-sm text-neutral-300">{vendor.subtext}</p>
           {vendor.description && vendor.description !== vendor.heroMessage && <p className="mt-3 text-sm text-neutral-400">{vendor.description}</p>}
         </section>
       </header>
@@ -171,7 +174,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
         <h2 className="mb-3 text-lg font-black">今日菜单</h2>
         <div className="space-y-3">
           {menu.map((item, index) => {
-            const remaining = remainingForItem(state, item);
+            const remaining = remainingForItem(state, item, pickupDate);
             const quantity = quantities[item.id] ?? 0;
             return (
               <article key={item.id} className="flex gap-3 rounded-[28px] bg-white p-4 shadow-sm">
@@ -212,7 +215,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
         <h2 className="mb-3 text-lg font-black">取餐时间</h2>
         <div className="grid grid-cols-3 gap-2">
           {slots.map((slot) => {
-            const full = slotUsed(state, slot) >= slot.maxOrders;
+            const full = slotUsed(state, slot, pickupDate) >= slot.maxOrders;
             return (
               <button
                 key={slot.id}
@@ -221,7 +224,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
                 className={`tap rounded-2xl border px-3 py-3 text-sm font-black ${pickupTime === slot.pickupTime ? "border-ink bg-ink text-paper" : "border-line bg-white"} disabled:bg-line disabled:text-neutral-400`}
               >
                 {slot.pickupTime}
-                <span className="block text-xs font-semibold">{full ? "已满" : `${slot.maxOrders - slotUsed(state, slot)} 位`}</span>
+                <span className="block text-xs font-semibold">{full ? "已满" : `${slot.maxOrders - slotUsed(state, slot, pickupDate)} 位`}</span>
               </button>
             );
           })}

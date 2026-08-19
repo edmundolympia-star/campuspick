@@ -2,6 +2,8 @@
 
 CampusPick is a production-ready MVP for university food preorder and pickup. Students scan a vendor QR code, order quickly without an account, choose a pickup time, and receive an order number. Vendors manage orders, stock, menu items, pickup slots, and printable QR codes.
 
+Orders are for the next pickup day by default. The daily cutoff is 6:00 PM Malaysia time: before 6:00 PM students preorder for tomorrow, and after 6:00 PM they preorder for the day after tomorrow.
+
 ## Tech stack
 
 - Next.js App Router
@@ -60,7 +62,7 @@ The schema includes:
 - `orders`
 - `order_items`
 
-The `place_order` Postgres function locks the relevant pickup slot and menu rows, checks remaining stock, checks pickup-slot capacity, creates a date-scoped order number such as `RB001`, and inserts order items in one transaction. Cancelled orders do not count toward reserved stock or pickup capacity.
+The `place_order` Postgres function locks the relevant pickup slot and menu rows, checks remaining stock for the pickup date, checks pickup-slot capacity for the pickup date, creates a date-scoped order number such as `RB001`, and inserts order items in one transaction. Cancelled orders do not count toward reserved stock or pickup capacity.
 
 ## MVP routes
 

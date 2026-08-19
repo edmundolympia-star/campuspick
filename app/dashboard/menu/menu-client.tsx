@@ -6,6 +6,7 @@ import { deleteMenuItem, loadState, remainingForItem, upsertMenuItem } from "@/l
 import { formatMoney } from "@/lib/demo-data";
 import { compressImage } from "@/lib/image-utils";
 import { deleteCloudMenuItem, fetchCloudState, saveCloudMenuItem, uploadCloudImage } from "@/lib/cloud-client";
+import { formatPickupDate, nextPickupDate } from "@/lib/order-dates";
 import type { DemoState, MenuItem } from "@/lib/types";
 
 const blank = (vendorId: string): MenuItem => ({
@@ -26,6 +27,7 @@ export function MenuClient() {
   const [editing, setEditing] = useState<MenuItem>(() => blank(vendor.id));
   const [notice, setNotice] = useState("");
   const [cloudMode, setCloudMode] = useState(false);
+  const pickupDate = nextPickupDate();
 
   useEffect(() => {
     const refresh = () => setState(loadState());
@@ -134,13 +136,13 @@ export function MenuClient() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-black">Menu</h2>
-            <p className="text-sm text-neutral-500">Set stock, price, availability, and sold-out status.</p>
+            <p className="text-sm text-neutral-500">Set stock, price, availability, and sold-out status for {formatPickupDate(pickupDate)}.</p>
           </div>
           <button onClick={() => setEditing(blank(vendor.id))} className="tap rounded-full bg-ink px-4 text-paper"><Plus size={18} /></button>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           {items.map((item) => {
-            const remaining = remainingForItem(state, item);
+            const remaining = remainingForItem(state, item, pickupDate);
             return (
               <article key={item.id} className="rounded-3xl border border-line bg-white p-4">
                 {item.imageUrl ? (
