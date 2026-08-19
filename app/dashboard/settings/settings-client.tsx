@@ -3,6 +3,7 @@
 import { Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { deletePickupSlot, loadState, slotUsed, updateVendor, upsertPickupSlot } from "@/lib/demo-store";
+import { compressImage } from "@/lib/image-utils";
 import type { DemoState, PickupSlot, Vendor } from "@/lib/types";
 
 export function SettingsClient() {
@@ -33,19 +34,28 @@ export function SettingsClient() {
   }
 
   function saveVendor() {
-    updateVendor({
-      ...vendorDraft,
-      slug: vendorDraft.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "") || vendor.slug
-    });
-    setState(loadState());
-    setNotice("Vendor info saved.");
-    window.setTimeout(() => setNotice(""), 2200);
+    try {
+      updateVendor({
+        ...vendorDraft,
+        slug: vendorDraft.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "") || vendor.slug
+      });
+      setState(loadState());
+      setNotice("Vendor info saved.");
+    } catch {
+      setNotice("Could not save. Try smaller photos.");
+    }
+    window.setTimeout(() => setNotice(""), 2600);
   }
 
-  function readImage(file: File, onDone: (value: string) => void) {
-    const reader = new FileReader();
-    reader.onload = () => onDone(String(reader.result));
-    reader.readAsDataURL(file);
+  async function readImage(file: File, onDone: (value: string) => void) {
+    try {
+      setNotice("Preparing image...");
+      onDone(await compressImage(file, 1000, 0.78));
+      setNotice("Image ready. Save vendor info.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not read this image.");
+    }
+    window.setTimeout(() => setNotice(""), 2600);
   }
 
   function addSlot() {
@@ -82,7 +92,7 @@ export function SettingsClient() {
                   accept="image/*"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (file) readImage(file, (logoUrl) => setVendorDraft((current) => ({ ...current, logoUrl })));
+                    if (file) void readImage(file, (logoUrl) => setVendorDraft((current) => ({ ...current, logoUrl })));
                   }}
                 />
               </label>
@@ -101,7 +111,7 @@ export function SettingsClient() {
                   accept="image/*"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (file) readImage(file, (duitnowQrUrl) => setVendorDraft((current) => ({ ...current, duitnowQrUrl })));
+                    if (file) void readImage(file, (duitnowQrUrl) => setVendorDraft((current) => ({ ...current, duitnowQrUrl })));
                   }}
                 />
               </label>

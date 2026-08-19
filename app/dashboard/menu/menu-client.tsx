@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { deleteMenuItem, loadState, remainingForItem, upsertMenuItem } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
+import { compressImage } from "@/lib/image-utils";
 import type { DemoState, MenuItem } from "@/lib/types";
 
 const blank = (vendorId: string): MenuItem => ({
@@ -34,17 +35,26 @@ export function MenuClient() {
 
   function save() {
     if (!editing.name || !editing.chineseName) return;
-    upsertMenuItem(editing);
-    setState(loadState());
-    setEditing(blank(vendor.id));
-    setNotice("Menu item saved.");
-    window.setTimeout(() => setNotice(""), 2200);
+    try {
+      upsertMenuItem(editing);
+      setState(loadState());
+      setEditing(blank(vendor.id));
+      setNotice("Menu item saved.");
+    } catch {
+      setNotice("Could not save. Try a smaller photo.");
+    }
+    window.setTimeout(() => setNotice(""), 2600);
   }
 
-  function readImage(file: File, onDone: (value: string) => void) {
-    const reader = new FileReader();
-    reader.onload = () => onDone(String(reader.result));
-    reader.readAsDataURL(file);
+  async function readImage(file: File, onDone: (value: string) => void) {
+    try {
+      setNotice("Preparing photo...");
+      onDone(await compressImage(file, 900, 0.78));
+      setNotice("Photo ready. Save the item.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not read this photo.");
+    }
+    window.setTimeout(() => setNotice(""), 2600);
   }
 
   return (
@@ -77,7 +87,7 @@ export function MenuClient() {
                 accept="image/*"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
-                  if (file) readImage(file, (imageUrl) => setEditing((current) => ({ ...current, imageUrl })));
+                  if (file) void readImage(file, (imageUrl) => setEditing((current) => ({ ...current, imageUrl })));
                 }}
               />
             </label>
