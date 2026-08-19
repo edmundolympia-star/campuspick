@@ -45,6 +45,10 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH=true
 DASHBOARD_PASSWORD=
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_TO=
+WHATSAPP_GRAPH_VERSION=v23.0
 ```
 
 Set `NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH=true` for MVP testing if you have not created vendor Supabase Auth users yet. Remove it or set it to `false` before real vendor use.
@@ -74,6 +78,10 @@ The `place_order` Postgres function locks the relevant pickup slot and menu rows
 - `/dashboard/qr`: print-ready vendor QR poster
 - `/order`: student order lookup by order number and phone last 4 digits
 - `/order/[id]`: student order summary page for reopening a placed order
+
+The dashboard can export the selected pickup date to CSV for daily prep. The settings page also includes a pause/sold-out switch that blocks new student orders while keeping order lookup and existing orders available.
+
+Optional WhatsApp alerts can be enabled with Meta WhatsApp Cloud API credentials. When configured, student cancellations send a WhatsApp text notification to `WHATSAPP_TO`.
 
 ## Demo checklist
 

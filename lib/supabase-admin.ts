@@ -26,7 +26,9 @@ export function toVendor(row: any): Vendor {
     heroMessage: row.hero_message ?? row.description ?? "",
     subtext: row.subtext ?? "",
     logoUrl: row.logo_url ?? "",
-    duitnowQrUrl: row.duitnow_qr_url ?? ""
+    duitnowQrUrl: row.duitnow_qr_url ?? "",
+    paused: Boolean(row.paused),
+    pauseMessage: row.pause_message ?? ""
   };
 }
 

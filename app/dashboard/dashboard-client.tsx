@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, QrCode } from "lucide-react";
+import { Download, FileDown, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { activeOrders, loadState, remainingForItem, updateOrderStatus } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
@@ -81,6 +81,58 @@ export function DashboardClient() {
     window.setTimeout(() => setNotice(""), 2200);
   }
 
+  function csvCell(value: string | number) {
+    return `"${String(value).replaceAll('"', '""')}"`;
+  }
+
+  function exportOrders() {
+    const activeForExport = orders.filter((order) => order.status !== "cancelled");
+    const summary = new Map<string, { name: string; quantity: number; total: number }>();
+    activeForExport.forEach((order) => {
+      order.items.forEach((item) => {
+        const key = item.menuItemId;
+        const current = summary.get(key) ?? { name: item.chineseName || item.itemName, quantity: 0, total: 0 };
+        current.quantity += item.quantity;
+        current.total += item.quantity * item.unitPrice;
+        summary.set(key, current);
+      });
+    });
+
+    const detailRows = [
+      ["Type", "Pickup Date", "Pickup Time", "Order No", "Status", "Name", "Phone Last 4", "Payment", "Item", "Qty", "Unit Price", "Line Total"],
+      ...activeForExport.flatMap((order) =>
+        order.items.map((item) => [
+          "Order",
+          order.pickupDate,
+          order.pickupTime,
+          order.orderNumber,
+          order.status,
+          order.customerName,
+          order.phoneLast4,
+          order.paymentMethod === "pickup" ? "Cash on pickup" : "DuitNow QR",
+          item.chineseName || item.itemName,
+          item.quantity,
+          item.unitPrice.toFixed(2),
+          (item.quantity * item.unitPrice).toFixed(2)
+        ])
+      ),
+      [],
+      ["Type", "Item", "Total Qty", "Total RM"],
+      ...Array.from(summary.values()).map((item) => ["Summary", item.name, item.quantity, item.total.toFixed(2)])
+    ];
+
+    const csv = detailRows.map((row) => row.map(csvCell).join(",")).join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${vendor.slug}-${date}-orders.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setNotice("Orders exported.");
+    window.setTimeout(() => setNotice(""), 2200);
+  }
+
   return (
     <div className="space-y-5">
       {notice && <div className="fixed right-4 top-4 z-50 rounded-full bg-ink px-5 py-3 text-sm font-black text-paper shadow-soft">{notice}</div>}
@@ -112,6 +164,9 @@ export function DashboardClient() {
               <select className="tap rounded-full border border-line bg-white px-3 text-sm font-bold" value={time} onChange={(event) => setTime(event.target.value)}>
                 {times.map((slot) => <option key={slot} value={slot}>{slot === "all" ? "All times" : slot}</option>)}
               </select>
+              <button onClick={exportOrders} className="tap flex items-center gap-2 rounded-full bg-ink px-4 text-sm font-black text-paper">
+                <FileDown size={16} /> Export CSV
+              </button>
             </div>
           </div>
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">

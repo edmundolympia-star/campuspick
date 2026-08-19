@@ -7,6 +7,14 @@ export async function POST(request: Request) {
   if (!supabase) return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
 
   const body = await request.json();
+  const { data: vendor, error: vendorError } = await supabase
+    .from("vendors")
+    .select("paused, pause_message")
+    .eq("slug", body.vendorSlug)
+    .maybeSingle();
+  if (vendorError) return NextResponse.json({ error: vendorError.message }, { status: 400 });
+  if (vendor?.paused) return NextResponse.json({ error: vendor.pause_message || "今天暂时停止接单。" }, { status: 400 });
+
   const items = Object.entries(body.quantities)
     .filter(([, quantity]) => Number(quantity) > 0)
     .map(([menu_item_id, quantity]) => ({ menu_item_id, quantity }));

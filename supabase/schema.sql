@@ -9,6 +9,8 @@ create table public.vendors (
   subtext text,
   logo_url text,
   duitnow_qr_url text,
+  paused boolean not null default false,
+  pause_message text,
   created_at timestamptz not null default now()
 );
 

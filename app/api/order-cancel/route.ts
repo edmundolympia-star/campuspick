@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { formatMoney } from "@/lib/demo-data";
+import { formatPickupDate } from "@/lib/order-dates";
+import { sendWhatsAppNotification } from "@/lib/whatsapp";
 
 export async function POST(request: Request) {
   const supabase = createSupabaseAdmin();
@@ -12,7 +15,7 @@ export async function POST(request: Request) {
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, phone_last4, status, created_at")
+    .select("id, order_number, customer_name, phone_last4, pickup_time, order_date, payment_method, status, total_amount, created_at")
     .eq("id", orderId)
     .maybeSingle();
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 });
@@ -25,5 +28,16 @@ export async function POST(request: Request) {
 
   const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  void sendWhatsAppNotification({
+    body: [
+      "CampusPick cancellation",
+      `Order: ${order.order_number}`,
+      `Name: ${order.customer_name}`,
+      `Phone: ****${order.phone_last4}`,
+      `Pickup: ${formatPickupDate(order.order_date)} ${String(order.pickup_time).slice(0, 5)}`,
+      `Payment: ${order.payment_method === "pickup" ? "Cash on pickup" : "DuitNow QR"}`,
+      `Amount: ${formatMoney(Number(order.total_amount))}`
+    ].join("\n")
+  });
   return NextResponse.json({ ok: true });
 }

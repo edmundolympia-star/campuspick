@@ -10,6 +10,8 @@ export type Vendor = {
   subtext: string;
   logoUrl?: string;
   duitnowQrUrl?: string;
+  paused?: boolean;
+  pauseMessage?: string;
 };
 
 export type MenuItem = {

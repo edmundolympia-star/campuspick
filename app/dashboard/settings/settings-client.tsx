@@ -112,6 +112,18 @@ export function SettingsClient() {
             <input className="tap w-full rounded-2xl border border-line bg-white px-4" placeholder="Hero message" value={vendorDraft.heroMessage} onChange={(event) => setVendorDraft({ ...vendorDraft, heroMessage: event.target.value })} />
             <input className="tap w-full rounded-2xl border border-line bg-white px-4" placeholder="Subtext" value={vendorDraft.subtext} onChange={(event) => setVendorDraft({ ...vendorDraft, subtext: event.target.value })} />
             <textarea className="min-h-24 w-full rounded-2xl border border-line bg-white px-4 py-3" placeholder="Description" value={vendorDraft.description} onChange={(event) => setVendorDraft({ ...vendorDraft, description: event.target.value })} />
+            <div className="rounded-3xl border border-line bg-white p-4">
+              <label className="flex items-center justify-between font-bold">
+                暂停接单 / 售罄
+                <input type="checkbox" checked={Boolean(vendorDraft.paused)} onChange={(event) => setVendorDraft({ ...vendorDraft, paused: event.target.checked })} />
+              </label>
+              <input
+                className="tap mt-3 w-full rounded-2xl border border-line bg-white px-4"
+                placeholder="暂停提示，例如：今天已售罄，明天再开放预订。"
+                value={vendorDraft.pauseMessage ?? ""}
+                onChange={(event) => setVendorDraft({ ...vendorDraft, pauseMessage: event.target.value })}
+              />
+            </div>
 
             <div className="rounded-3xl border border-line bg-white p-3">
               {vendorDraft.logoUrl ? (

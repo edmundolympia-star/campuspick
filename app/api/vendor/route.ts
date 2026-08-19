@@ -15,7 +15,9 @@ export async function POST(request: Request) {
       hero_message: vendor.heroMessage,
       subtext: vendor.subtext,
       logo_url: vendor.logoUrl,
-      duitnow_qr_url: vendor.duitnowQrUrl
+      duitnow_qr_url: vendor.duitnowQrUrl,
+      paused: Boolean(vendor.paused),
+      pause_message: vendor.pauseMessage ?? ""
     })
     .eq("id", vendor.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

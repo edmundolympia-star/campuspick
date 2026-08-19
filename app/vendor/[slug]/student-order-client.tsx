@@ -41,6 +41,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
   const menu = state.menuItems.filter((item) => item.vendorId === vendor.id && item.available);
   const slots = state.pickupSlots.filter((item) => item.vendorId === vendor.id && item.active);
   const remainingTotal = menu.reduce((sum, item) => sum + remainingForItem(state, item, pickupDate), 0);
+  const paused = Boolean(vendor.paused);
   const total = useMemo(
     () => menu.reduce((sum, item) => sum + (quantities[item.id] ?? 0) * item.price, 0),
     [menu, quantities]
@@ -149,6 +150,9 @@ export function StudentOrderClient({ slug }: { slug: string }) {
         <Link href={`/order/${order.id}`} className="tap mt-3 flex w-full items-center justify-center rounded-full bg-mist px-5 py-4 font-bold text-ink">
           查看订单详情 / 取消订单
         </Link>
+        <Link href="/order" className="tap mt-3 flex w-full items-center justify-center rounded-full bg-white px-5 py-4 font-bold text-ink shadow-sm">
+          查询其他订单
+        </Link>
       </main>
     );
   }
@@ -158,7 +162,12 @@ export function StudentOrderClient({ slug }: { slug: string }) {
       <header className="px-5 pb-4 pt-6">
         <div className="flex items-center justify-between">
           <span className="text-lg font-black">CampusPick</span>
-          <span className="rounded-full bg-wasabi px-3 py-1 text-sm font-bold">剩余 {remainingTotal} 份</span>
+          <div className="flex items-center gap-2">
+            <Link href="/order" className="tap rounded-full bg-white px-3 py-2 text-sm font-black shadow-sm">
+              查订单
+            </Link>
+            <span className="rounded-full bg-wasabi px-3 py-1 text-sm font-bold">剩余 {remainingTotal} 份</span>
+          </div>
         </div>
         <section className="mt-5 rounded-[32px] bg-ink p-6 text-paper">
           {vendor.logoUrl && <img src={vendor.logoUrl} alt={vendor.name} className="mb-5 h-36 w-full rounded-3xl object-cover" />}
@@ -168,6 +177,12 @@ export function StudentOrderClient({ slug }: { slug: string }) {
           <p className="mt-2 text-sm text-neutral-300">{vendor.subtext}</p>
           {vendor.description && vendor.description !== vendor.heroMessage && <p className="mt-3 text-sm text-neutral-400">{vendor.description}</p>}
         </section>
+        {paused && (
+          <section className="mt-4 rounded-[28px] bg-tomato/10 p-5 text-tomato">
+            <h2 className="text-lg font-black">暂时停止接单</h2>
+            <p className="mt-2 text-sm font-bold">{vendor.pauseMessage || "今天暂时停止接单。"}</p>
+          </section>
+        )}
       </header>
 
       <section className="px-5">
@@ -242,8 +257,8 @@ export function StudentOrderClient({ slug }: { slug: string }) {
       </section>
 
       <footer className="fixed inset-x-0 bottom-0 mx-auto w-full max-w-[460px] border-t border-line bg-paper/95 px-5 py-4 backdrop-blur">
-        <button disabled={!selectedCount || submitting} onClick={() => void submitOrder()} className="tap flex w-full items-center justify-between rounded-full bg-ink px-5 py-4 font-black text-paper disabled:opacity-40">
-          <span>{submitting ? "正在提交..." : `确认预订 · ${selectedCount} 份`}</span>
+        <button disabled={!selectedCount || submitting || paused} onClick={() => void submitOrder()} className="tap flex w-full items-center justify-between rounded-full bg-ink px-5 py-4 font-black text-paper disabled:opacity-40">
+          <span>{paused ? "暂时停止接单" : submitting ? "正在提交..." : `确认预订 · ${selectedCount} 份`}</span>
           <span>{formatMoney(total)}</span>
         </button>
       </footer>

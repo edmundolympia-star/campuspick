@@ -24,7 +24,9 @@ export function loadState(): DemoState {
       heroMessage: vendor.heroMessage ?? vendor.description ?? "今天的饭团，先订，再来拿。",
       subtext: vendor.subtext ?? "无需排队 · 选择取餐时间 · 到店直接取",
       logoUrl: vendor.logoUrl ?? "",
-      duitnowQrUrl: vendor.duitnowQrUrl ?? ""
+      duitnowQrUrl: vendor.duitnowQrUrl ?? "",
+      paused: vendor.paused ?? false,
+      pauseMessage: vendor.pauseMessage ?? "今天暂时停止接单。"
     })),
     menuItems: parsed.menuItems.map((item) => ({ ...item, imageUrl: item.imageUrl ?? "" })),
     orders: parsed.orders.map((order) => ({ ...order, pickupDate: order.pickupDate ?? todayKey() }))
@@ -80,6 +82,8 @@ export function createOrder(input: {
 }): Order {
   const state = loadState();
   const pickupDate = nextPickupDate();
+  const vendor = state.vendors.find((item) => item.id === input.vendorId);
+  if (vendor?.paused) throw new Error(vendor.pauseMessage || "今天暂时停止接单。");
   const slot = state.pickupSlots.find((item) => item.vendorId === input.vendorId && item.pickupTime === input.pickupTime);
   if (!slot || !slot.active || slotUsed(state, slot, pickupDate) >= slot.maxOrders) {
     throw new Error("这个取餐时间已满，请选择其他时间。");
@@ -96,7 +100,6 @@ export function createOrder(input: {
   });
 
   const todayOrders = state.orders.filter((order) => order.vendorId === input.vendorId && order.pickupDate === pickupDate);
-  const vendor = state.vendors.find((item) => item.id === input.vendorId);
   const prefix = vendor?.slug.includes("riceball") ? "RB" : "CP";
   const orderNumber = `${prefix}${String(todayOrders.length + 1).padStart(3, "0")}`;
   const orderId = crypto.randomUUID();

@@ -23,6 +23,8 @@ create table if not exists public.vendors (
   subtext text,
   logo_url text,
   duitnow_qr_url text,
+  paused boolean not null default false,
+  pause_message text,
   created_at timestamptz not null default now()
 );
 
@@ -72,6 +74,8 @@ create table if not exists public.order_items (
 
 alter table public.vendors add column if not exists hero_message text;
 alter table public.vendors add column if not exists subtext text;
+alter table public.vendors add column if not exists paused boolean not null default false;
+alter table public.vendors add column if not exists pause_message text;
 alter table public.orders add column if not exists order_date date not null default current_date;
 
 create index if not exists orders_vendor_date_idx on public.orders (vendor_id, created_at);

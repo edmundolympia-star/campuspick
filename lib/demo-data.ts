@@ -12,7 +12,9 @@ export const initialState: DemoState = {
       description: "今天的饭团，先订，再来拿。",
       heroMessage: "今天的饭团，先订，再来拿。",
       subtext: "无需排队 · 选择取餐时间 · 到店直接取",
-      duitnowQrUrl: ""
+      duitnowQrUrl: "",
+      paused: false,
+      pauseMessage: "今天暂时停止接单。"
     }
   ],
   menuItems: [
