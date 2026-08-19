@@ -45,10 +45,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH=true
 DASHBOARD_PASSWORD=
-WHATSAPP_ACCESS_TOKEN=
-WHATSAPP_PHONE_NUMBER_ID=
-WHATSAPP_TO=
-WHATSAPP_GRAPH_VERSION=v23.0
+RESEND_API_KEY=
+ALERT_EMAIL_TO=
+ALERT_EMAIL_FROM=CampusPick <onboarding@resend.dev>
 ```
 
 Set `NEXT_PUBLIC_DISABLE_DASHBOARD_AUTH=true` for MVP testing if you have not created vendor Supabase Auth users yet. Remove it or set it to `false` before real vendor use.
@@ -81,7 +80,7 @@ The `place_order` Postgres function locks the relevant pickup slot and menu rows
 
 The dashboard can export the selected pickup date to CSV for daily prep. The settings page also includes a pause/sold-out switch that blocks new student orders while keeping order lookup and existing orders available.
 
-Optional WhatsApp alerts can be enabled with Meta WhatsApp Cloud API credentials. When configured, student cancellations send a WhatsApp text notification to `WHATSAPP_TO`.
+Optional email alerts can be enabled with Resend credentials. When configured, student cancellations send an email notification to `ALERT_EMAIL_TO`.
 
 ## Demo checklist
 

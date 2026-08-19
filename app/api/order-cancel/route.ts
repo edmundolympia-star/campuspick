@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { formatMoney } from "@/lib/demo-data";
+import { sendEmailNotification } from "@/lib/email";
 import { formatPickupDate } from "@/lib/order-dates";
-import { sendWhatsAppNotification } from "@/lib/whatsapp";
 
 export async function POST(request: Request) {
   const supabase = createSupabaseAdmin();
@@ -28,8 +28,7 @@ export async function POST(request: Request) {
 
   const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  void sendWhatsAppNotification({
-    body: [
+  const alertText = [
       "CampusPick cancellation",
       `Order: ${order.order_number}`,
       `Name: ${order.customer_name}`,
@@ -37,7 +36,11 @@ export async function POST(request: Request) {
       `Pickup: ${formatPickupDate(order.order_date)} ${String(order.pickup_time).slice(0, 5)}`,
       `Payment: ${order.payment_method === "pickup" ? "Cash on pickup" : "DuitNow QR"}`,
       `Amount: ${formatMoney(Number(order.total_amount))}`
-    ].join("\n")
+    ].join("\n");
+  void sendEmailNotification({
+    subject: `CampusPick cancelled: ${order.order_number}`,
+    text: alertText,
+    html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap">${alertText}</pre>`
   });
   return NextResponse.json({ ok: true });
 }
