@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { createOrder, loadState, remainingForItem, slotUsed } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
+import { createCloudOrder, fetchCloudState } from "@/lib/cloud-client";
 import type { DemoState, Order, PaymentMethod } from "@/lib/types";
 
 export function StudentOrderClient({ slug }: { slug: string }) {
@@ -18,12 +19,21 @@ export function StudentOrderClient({ slug }: { slug: string }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cloudMode, setCloudMode] = useState(false);
 
   useEffect(() => {
     const refresh = () => setState(loadState());
     window.addEventListener("campuspick-state", refresh);
+    fetchCloudState(slug)
+      .then((result) => {
+        if (result.mode === "cloud") {
+          setCloudMode(true);
+          setState(result.state);
+        }
+      })
+      .catch(() => undefined);
     return () => window.removeEventListener("campuspick-state", refresh);
-  }, []);
+  }, [slug]);
 
   const vendor = state.vendors.find((item) => item.slug === slug) ?? state.vendors[0];
   const menu = state.menuItems.filter((item) => item.vendorId === vendor.id && item.available);
@@ -39,23 +49,39 @@ export function StudentOrderClient({ slug }: { slug: string }) {
     setQuantities((current) => ({ ...current, [itemId]: Math.max(0, Math.min(next, max)) }));
   }
 
-  function submitOrder() {
+  async function submitOrder() {
     if (submitting) return;
     setError("");
     if (!customerName.trim()) return setError("请输入姓名。");
     if (!/^\d{4}$/.test(phoneLast4)) return setError("请输入手机号码最后 4 位数字。");
     setSubmitting(true);
     try {
-      const newOrder = createOrder({
-        vendorId: vendor.id,
-        quantities,
-        pickupTime,
-        customerName: customerName.trim(),
-        phoneLast4,
-        paymentMethod
-      });
-      setOrder(newOrder);
-      setState(loadState());
+      if (cloudMode) {
+        const created = await createCloudOrder({
+          vendorSlug: vendor.slug,
+          quantities,
+          pickupTime,
+          customerName: customerName.trim(),
+          phoneLast4,
+          paymentMethod
+        });
+        const result = await fetchCloudState(vendor.slug);
+        if (result.mode === "cloud") {
+          setState(result.state);
+          setOrder(result.state.orders.find((item) => item.id === created.orderId) ?? result.state.orders.find((item) => item.orderNumber === created.orderNumber) ?? null);
+        }
+      } else {
+        const newOrder = createOrder({
+          vendorId: vendor.id,
+          quantities,
+          pickupTime,
+          customerName: customerName.trim(),
+          phoneLast4,
+          paymentMethod
+        });
+        setOrder(newOrder);
+        setState(loadState());
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "预订失败，请重试。");
@@ -212,7 +238,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
       </section>
 
       <footer className="fixed inset-x-0 bottom-0 mx-auto w-full max-w-[460px] border-t border-line bg-paper/95 px-5 py-4 backdrop-blur">
-        <button disabled={!selectedCount || submitting} onClick={submitOrder} className="tap flex w-full items-center justify-between rounded-full bg-ink px-5 py-4 font-black text-paper disabled:opacity-40">
+        <button disabled={!selectedCount || submitting} onClick={() => void submitOrder()} className="tap flex w-full items-center justify-between rounded-full bg-ink px-5 py-4 font-black text-paper disabled:opacity-40">
           <span>{submitting ? "正在提交..." : `确认预订 · ${selectedCount} 份`}</span>
           <span>{formatMoney(total)}</span>
         </button>

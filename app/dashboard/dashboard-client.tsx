@@ -6,6 +6,7 @@ import { Download, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { activeOrders, loadState, remainingForItem, updateOrderStatus } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
+import { fetchCloudState, updateCloudOrderStatus } from "@/lib/cloud-client";
 import type { DemoState, OrderStatus } from "@/lib/types";
 
 const statuses: Array<"all" | OrderStatus> = ["all", "pending", "ready", "collected", "cancelled"];
@@ -15,10 +16,19 @@ export function DashboardClient() {
   const [status, setStatus] = useState<"all" | OrderStatus>("all");
   const [time, setTime] = useState("all");
   const [notice, setNotice] = useState("");
+  const [cloudMode, setCloudMode] = useState(false);
 
   useEffect(() => {
     const refresh = () => setState(loadState());
     window.addEventListener("campuspick-state", refresh);
+    fetchCloudState()
+      .then((result) => {
+        if (result.mode === "cloud") {
+          setCloudMode(true);
+          setState(result.state);
+        }
+      })
+      .catch(() => undefined);
     return () => window.removeEventListener("campuspick-state", refresh);
   }, []);
 
@@ -35,9 +45,15 @@ export function DashboardClient() {
   const times = useMemo(() => ["all", ...state.pickupSlots.filter((slot) => slot.vendorId === vendor.id).map((slot) => slot.pickupTime)], [state, vendor.id]);
   const publicUrl = typeof window === "undefined" ? `/vendor/${vendor.slug}` : `${window.location.origin}/vendor/${vendor.slug}`;
 
-  function setOrderStatus(orderId: string, nextStatus: OrderStatus) {
-    updateOrderStatus(orderId, nextStatus);
-    setState(loadState());
+  async function setOrderStatus(orderId: string, nextStatus: OrderStatus) {
+    if (cloudMode) {
+      await updateCloudOrderStatus(orderId, nextStatus);
+      const result = await fetchCloudState(vendor.slug);
+      if (result.mode === "cloud") setState(result.state);
+    } else {
+      updateOrderStatus(orderId, nextStatus);
+      setState(loadState());
+    }
     setNotice(`Order marked ${nextStatus}.`);
     window.setTimeout(() => setNotice(""), 2200);
   }
@@ -119,9 +135,9 @@ export function DashboardClient() {
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                   <strong>{formatMoney(order.totalAmount)}</strong>
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setOrderStatus(order.id, "ready")} className="tap rounded-full bg-ink px-4 text-sm font-bold text-paper">Ready</button>
-                    <button onClick={() => setOrderStatus(order.id, "collected")} className="tap rounded-full bg-matcha px-4 text-sm font-bold text-white">Collected</button>
-                    <button onClick={() => setOrderStatus(order.id, "cancelled")} className="tap rounded-full bg-tomato px-4 text-sm font-bold text-white">Cancel</button>
+                    <button onClick={() => void setOrderStatus(order.id, "ready")} className="tap rounded-full bg-ink px-4 text-sm font-bold text-paper">Ready</button>
+                    <button onClick={() => void setOrderStatus(order.id, "collected")} className="tap rounded-full bg-matcha px-4 text-sm font-bold text-white">Collected</button>
+                    <button onClick={() => void setOrderStatus(order.id, "cancelled")} className="tap rounded-full bg-tomato px-4 text-sm font-bold text-white">Cancel</button>
                   </div>
                 </div>
               </article>

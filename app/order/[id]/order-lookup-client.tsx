@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { findOrder, loadState } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
+import { fetchCloudState } from "@/lib/cloud-client";
 import type { Order, Vendor } from "@/lib/types";
 
 export function OrderLookupClient({ id }: { id: string }) {
@@ -12,10 +13,25 @@ export function OrderLookupClient({ id }: { id: string }) {
   const [vendor, setVendor] = useState<Vendor | undefined>();
 
   useEffect(() => {
-    const found = findOrder(id);
-    const state = loadState();
-    setOrder(found);
-    setVendor(found ? state.vendors.find((item) => item.id === found.vendorId) : state.vendors[0]);
+    fetchCloudState()
+      .then((result) => {
+        if (result.mode === "cloud") {
+          const found = result.state.orders.find((item) => item.id === id);
+          setOrder(found ?? null);
+          setVendor(found ? result.state.vendors.find((item) => item.id === found.vendorId) : result.state.vendors[0]);
+          return;
+        }
+        const found = findOrder(id);
+        const state = loadState();
+        setOrder(found);
+        setVendor(found ? state.vendors.find((item) => item.id === found.vendorId) : state.vendors[0]);
+      })
+      .catch(() => {
+        const found = findOrder(id);
+        const state = loadState();
+        setOrder(found);
+        setVendor(found ? state.vendors.find((item) => item.id === found.vendorId) : state.vendors[0]);
+      });
   }, [id]);
 
   if (order === undefined) {

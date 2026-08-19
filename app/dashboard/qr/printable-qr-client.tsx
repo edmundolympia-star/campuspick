@@ -3,11 +3,22 @@
 import Link from "next/link";
 import { Printer } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useState } from "react";
 import { loadState } from "@/lib/demo-store";
+import { fetchCloudState } from "@/lib/cloud-client";
+import type { Vendor } from "@/lib/types";
 
 export function PrintableQrClient() {
-  const state = loadState();
-  const vendor = state.vendors[0];
+  const [vendor, setVendor] = useState<Vendor>(() => loadState().vendors[0]);
+
+  useEffect(() => {
+    fetchCloudState()
+      .then((result) => {
+        if (result.mode === "cloud") setVendor(result.state.vendors[0]);
+      })
+      .catch(() => undefined);
+  }, []);
+
   const publicUrl = typeof window === "undefined" ? `/vendor/${vendor.slug}` : `${window.location.origin}/vendor/${vendor.slug}`;
 
   return (

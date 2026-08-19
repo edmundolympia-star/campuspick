@@ -4,6 +4,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { deletePickupSlot, loadState, slotUsed, updateVendor, upsertPickupSlot } from "@/lib/demo-store";
 import { compressImage } from "@/lib/image-utils";
+import { deleteCloudPickupSlot, fetchCloudState, saveCloudPickupSlot, saveCloudVendor, uploadCloudImage } from "@/lib/cloud-client";
 import type { DemoState, PickupSlot, Vendor } from "@/lib/types";
 
 export function SettingsClient() {
@@ -13,10 +14,19 @@ export function SettingsClient() {
   const [time, setTime] = useState("");
   const [maxOrders, setMaxOrders] = useState(20);
   const [notice, setNotice] = useState("");
+  const [cloudMode, setCloudMode] = useState(false);
 
   useEffect(() => {
     const refresh = () => setState(loadState());
     window.addEventListener("campuspick-state", refresh);
+    fetchCloudState()
+      .then((result) => {
+        if (result.mode === "cloud") {
+          setCloudMode(true);
+          setState(result.state);
+        }
+      })
+      .catch(() => undefined);
     return () => window.removeEventListener("campuspick-state", refresh);
   }, []);
 
@@ -26,20 +36,36 @@ export function SettingsClient() {
 
   const slots = state.pickupSlots.filter((slot) => slot.vendorId === vendor.id);
 
-  function saveSlot(slot: PickupSlot) {
-    upsertPickupSlot(slot);
-    setState(loadState());
+  async function refreshCloud() {
+    const result = await fetchCloudState(vendorDraft.slug || vendor.slug);
+    if (result.mode === "cloud") setState(result.state);
+  }
+
+  async function saveSlot(slot: PickupSlot) {
+    if (cloudMode) {
+      await saveCloudPickupSlot(slot);
+      await refreshCloud();
+    } else {
+      upsertPickupSlot(slot);
+      setState(loadState());
+    }
     setNotice("Pickup slot saved.");
     window.setTimeout(() => setNotice(""), 2200);
   }
 
-  function saveVendor() {
+  async function saveVendor() {
     try {
-      updateVendor({
+      const sanitizedVendor = {
         ...vendorDraft,
         slug: vendorDraft.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "") || vendor.slug
-      });
-      setState(loadState());
+      };
+      if (cloudMode) {
+        await saveCloudVendor(sanitizedVendor);
+        await refreshCloud();
+      } else {
+        updateVendor(sanitizedVendor);
+        setState(loadState());
+      }
       setNotice("Vendor info saved.");
     } catch {
       setNotice("Could not save. Try smaller photos.");
@@ -50,7 +76,13 @@ export function SettingsClient() {
   async function readImage(file: File, onDone: (value: string) => void) {
     try {
       setNotice("Preparing image...");
-      onDone(await compressImage(file, 1000, 0.78));
+      const compressed = await compressImage(file, 1000, 0.78);
+      if (cloudMode) {
+        const { publicUrl } = await uploadCloudImage(compressed, "vendor");
+        onDone(publicUrl);
+      } else {
+        onDone(compressed);
+      }
       setNotice("Image ready. Save vendor info.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not read this image.");
@@ -60,7 +92,7 @@ export function SettingsClient() {
 
   function addSlot() {
     if (!time) return;
-    saveSlot({ id: crypto.randomUUID(), vendorId: vendor.id, pickupTime: time, maxOrders, active: true });
+    void saveSlot({ id: crypto.randomUUID(), vendorId: vendor.id, pickupTime: time, maxOrders, active: true });
     setTime("");
     setMaxOrders(20);
   }
@@ -117,7 +149,7 @@ export function SettingsClient() {
               </label>
             </div>
 
-            <button onClick={saveVendor} className="tap flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 font-black text-paper"><Save size={18} /> Save vendor info</button>
+            <button onClick={() => void saveVendor()} className="tap flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 font-black text-paper"><Save size={18} /> Save vendor info</button>
           </div>
         </div>
 
@@ -140,24 +172,29 @@ export function SettingsClient() {
           {slots.map((slot) => (
             <article key={slot.id} className="grid gap-3 rounded-3xl border border-line bg-white p-4 sm:grid-cols-[140px_1fr_120px_52px] sm:items-center">
               <label className="text-sm font-bold text-neutral-500">Pickup time
-                <input className="tap mt-1 w-full rounded-2xl border border-line bg-white px-4 text-ink" type="time" value={slot.pickupTime} onChange={(event) => saveSlot({ ...slot, pickupTime: event.target.value })} />
+                <input className="tap mt-1 w-full rounded-2xl border border-line bg-white px-4 text-ink" type="time" value={slot.pickupTime} onChange={(event) => void saveSlot({ ...slot, pickupTime: event.target.value })} />
               </label>
               <div>
                 <label className="text-sm font-bold text-neutral-500">Maximum orders
-                  <input className="tap mt-1 w-full rounded-2xl border border-line bg-white px-4 text-ink" type="number" value={slot.maxOrders} onChange={(event) => saveSlot({ ...slot, maxOrders: Number(event.target.value) })} />
+                  <input className="tap mt-1 w-full rounded-2xl border border-line bg-white px-4 text-ink" type="number" value={slot.maxOrders} onChange={(event) => void saveSlot({ ...slot, maxOrders: Number(event.target.value) })} />
                 </label>
                 <p className="mt-1 text-sm text-neutral-500">{slotUsed(state, slot)} active orders currently reserved.</p>
               </div>
               <label className="flex items-center justify-between rounded-2xl bg-mist px-4 py-3 font-bold">
                 Enabled
-                <input type="checkbox" checked={slot.active} onChange={(event) => saveSlot({ ...slot, active: event.target.checked })} />
+                <input type="checkbox" checked={slot.active} onChange={(event) => void saveSlot({ ...slot, active: event.target.checked })} />
               </label>
               <button
                 aria-label="Delete pickup slot"
                 className="tap grid rounded-2xl bg-tomato text-white"
-                onClick={() => {
-                  deletePickupSlot(slot.id);
-                  setState(loadState());
+                onClick={async () => {
+                  if (cloudMode) {
+                    await deleteCloudPickupSlot(slot.id);
+                    await refreshCloud();
+                  } else {
+                    deletePickupSlot(slot.id);
+                    setState(loadState());
+                  }
                   setNotice("Pickup slot deleted.");
                   window.setTimeout(() => setNotice(""), 2200);
                 }}

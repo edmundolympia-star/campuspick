@@ -1,6 +1,20 @@
 create extension if not exists pgcrypto;
 
-create table public.vendors (
+do $$
+begin
+  create type public.order_status as enum ('pending', 'ready', 'collected', 'cancelled');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.payment_method as enum ('pickup', 'duitnow');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.vendors (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   slug text not null unique,
@@ -12,7 +26,7 @@ create table public.vendors (
   created_at timestamptz not null default now()
 );
 
-create table public.menu_items (
+create table if not exists public.menu_items (
   id uuid primary key default gen_random_uuid(),
   vendor_id uuid not null references public.vendors(id) on delete cascade,
   name text not null,
@@ -25,7 +39,7 @@ create table public.menu_items (
   created_at timestamptz not null default now()
 );
 
-create table public.pickup_slots (
+create table if not exists public.pickup_slots (
   id uuid primary key default gen_random_uuid(),
   vendor_id uuid not null references public.vendors(id) on delete cascade,
   pickup_time time not null,
@@ -34,10 +48,7 @@ create table public.pickup_slots (
   unique (vendor_id, pickup_time)
 );
 
-create type public.order_status as enum ('pending', 'ready', 'collected', 'cancelled');
-create type public.payment_method as enum ('pickup', 'duitnow');
-
-create table public.orders (
+create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   vendor_id uuid not null references public.vendors(id) on delete cascade,
   order_number text not null,
@@ -51,7 +62,7 @@ create table public.orders (
   created_at timestamptz not null default now()
 );
 
-create table public.order_items (
+create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
   menu_item_id uuid not null references public.menu_items(id),
@@ -59,10 +70,18 @@ create table public.order_items (
   unit_price numeric(10, 2) not null check (unit_price >= 0)
 );
 
-create index orders_vendor_date_idx on public.orders (vendor_id, created_at);
-create unique index orders_vendor_order_number_day_idx on public.orders (vendor_id, order_number, order_date);
-create index orders_pickup_status_idx on public.orders (vendor_id, pickup_time, status);
-create index order_items_menu_item_idx on public.order_items (menu_item_id);
+alter table public.vendors add column if not exists hero_message text;
+alter table public.vendors add column if not exists subtext text;
+alter table public.orders add column if not exists order_date date not null default current_date;
+
+create index if not exists orders_vendor_date_idx on public.orders (vendor_id, created_at);
+create index if not exists orders_pickup_status_idx on public.orders (vendor_id, pickup_time, status);
+create index if not exists order_items_menu_item_idx on public.order_items (menu_item_id);
+
+drop index if exists public.orders_vendor_order_number_day_idx;
+drop index if exists orders_vendor_order_number_day_idx;
+create unique index if not exists orders_vendor_order_number_day_idx
+on public.orders (vendor_id, order_number, order_date);
 
 alter table public.vendors enable row level security;
 alter table public.menu_items enable row level security;
@@ -70,14 +89,17 @@ alter table public.pickup_slots enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
+drop policy if exists "public can read active vendor data" on public.vendors;
+drop policy if exists "public can read menu" on public.menu_items;
+drop policy if exists "public can read pickup slots" on public.pickup_slots;
+drop policy if exists "public can create orders" on public.orders;
+drop policy if exists "public can create order items" on public.order_items;
+
 create policy "public can read active vendor data" on public.vendors for select using (true);
 create policy "public can read menu" on public.menu_items for select using (true);
 create policy "public can read pickup slots" on public.pickup_slots for select using (true);
 create policy "public can create orders" on public.orders for insert with check (true);
 create policy "public can create order items" on public.order_items for insert with check (true);
-
--- For an MVP, vendor dashboard writes should be performed through server routes
--- with SUPABASE_SERVICE_ROLE_KEY after Supabase Auth checks the logged-in vendor.
 
 create or replace function public.place_order(
   p_vendor_slug text,
@@ -185,13 +207,23 @@ values (
   '今天的饭团，先订，再来拿。',
   '无需排队 · 选择取餐时间 · 到店直接取'
 )
-on conflict (slug) do nothing;
+on conflict (slug) do update set
+  name = excluded.name,
+  description = excluded.description,
+  hero_message = excluded.hero_message,
+  subtext = excluded.subtext;
 
 insert into public.menu_items (vendor_id, name, chinese_name, description, price, daily_stock, available)
-values
-('11111111-1111-1111-1111-111111111111', 'Teriyaki Chicken Rice Ball', '照烧鸡饭团', '炙烤照烧鸡、米饭、海苔与清爽小菜。', 8.90, 40, true),
-('11111111-1111-1111-1111-111111111111', 'Spicy Tuna Rice Ball', '辣味金枪鱼饭团', '微辣金枪鱼拌酱，适合午餐快速补能。', 9.50, 35, true),
-('11111111-1111-1111-1111-111111111111', 'Unagi Tamago Rice Ball', '鳗鱼玉子饭团', '蒲烧鳗鱼与厚蛋烧，口感更丰富。', 10.00, 25, true);
+select '11111111-1111-1111-1111-111111111111', 'Teriyaki Chicken Rice Ball', '照烧鸡饭团', '炙烤照烧鸡、米饭、海苔与清爽小菜。', 8.90, 40, true
+where not exists (select 1 from public.menu_items where vendor_id = '11111111-1111-1111-1111-111111111111' and name = 'Teriyaki Chicken Rice Ball');
+
+insert into public.menu_items (vendor_id, name, chinese_name, description, price, daily_stock, available)
+select '11111111-1111-1111-1111-111111111111', 'Spicy Tuna Rice Ball', '辣味金枪鱼饭团', '微辣金枪鱼拌酱，适合午餐快速补能。', 9.50, 35, true
+where not exists (select 1 from public.menu_items where vendor_id = '11111111-1111-1111-1111-111111111111' and name = 'Spicy Tuna Rice Ball');
+
+insert into public.menu_items (vendor_id, name, chinese_name, description, price, daily_stock, available)
+select '11111111-1111-1111-1111-111111111111', 'Unagi Tamago Rice Ball', '鳗鱼玉子饭团', '蒲烧鳗鱼与厚蛋烧，口感更丰富。', 10.00, 25, true
+where not exists (select 1 from public.menu_items where vendor_id = '11111111-1111-1111-1111-111111111111' and name = 'Unagi Tamago Rice Ball');
 
 insert into public.pickup_slots (vendor_id, pickup_time, max_orders, active)
 values
@@ -199,4 +231,7 @@ values
 ('11111111-1111-1111-1111-111111111111', '12:00', 20, true),
 ('11111111-1111-1111-1111-111111111111', '12:30', 20, true),
 ('11111111-1111-1111-1111-111111111111', '13:00', 20, true),
-('11111111-1111-1111-1111-111111111111', '13:30', 20, true);
+('11111111-1111-1111-1111-111111111111', '13:30', 20, true)
+on conflict (vendor_id, pickup_time) do update set
+  max_orders = excluded.max_orders,
+  active = excluded.active;

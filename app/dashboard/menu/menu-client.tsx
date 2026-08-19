@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { deleteMenuItem, loadState, remainingForItem, upsertMenuItem } from "@/lib/demo-store";
 import { formatMoney } from "@/lib/demo-data";
 import { compressImage } from "@/lib/image-utils";
+import { deleteCloudMenuItem, fetchCloudState, saveCloudMenuItem, uploadCloudImage } from "@/lib/cloud-client";
 import type { DemoState, MenuItem } from "@/lib/types";
 
 const blank = (vendorId: string): MenuItem => ({
@@ -24,24 +25,43 @@ export function MenuClient() {
   const vendor = state.vendors[0];
   const [editing, setEditing] = useState<MenuItem>(() => blank(vendor.id));
   const [notice, setNotice] = useState("");
+  const [cloudMode, setCloudMode] = useState(false);
 
   useEffect(() => {
     const refresh = () => setState(loadState());
     window.addEventListener("campuspick-state", refresh);
+    fetchCloudState()
+      .then((result) => {
+        if (result.mode === "cloud") {
+          setCloudMode(true);
+          setState(result.state);
+        }
+      })
+      .catch(() => undefined);
     return () => window.removeEventListener("campuspick-state", refresh);
   }, []);
 
   const items = state.menuItems.filter((item) => item.vendorId === vendor.id);
 
-  function save() {
+  async function refreshCloud() {
+    const result = await fetchCloudState();
+    if (result.mode === "cloud") setState(result.state);
+  }
+
+  async function save() {
     if (!editing.name || !editing.chineseName) return;
     try {
-      upsertMenuItem(editing);
-      setState(loadState());
+      if (cloudMode) {
+        await saveCloudMenuItem(editing);
+        await refreshCloud();
+      } else {
+        upsertMenuItem(editing);
+        setState(loadState());
+      }
       setEditing(blank(vendor.id));
       setNotice("Menu item saved.");
-    } catch {
-      setNotice("Could not save. Try a smaller photo.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not save. Try a smaller photo.");
     }
     window.setTimeout(() => setNotice(""), 2600);
   }
@@ -49,7 +69,13 @@ export function MenuClient() {
   async function readImage(file: File, onDone: (value: string) => void) {
     try {
       setNotice("Preparing photo...");
-      onDone(await compressImage(file, 900, 0.78));
+      const compressed = await compressImage(file, 900, 0.78);
+      if (cloudMode) {
+        const { publicUrl } = await uploadCloudImage(compressed, "menu");
+        onDone(publicUrl);
+      } else {
+        onDone(compressed);
+      }
       setNotice("Photo ready. Save the item.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not read this photo.");
@@ -98,7 +124,7 @@ export function MenuClient() {
             <input type="checkbox" checked={editing.available} onChange={(event) => setEditing({ ...editing, available: event.target.checked })} />
           </label>
           <div className="grid grid-cols-2 gap-2">
-            <button className="tap rounded-full bg-ink px-4 font-black text-paper" onClick={save}>Save item</button>
+            <button className="tap rounded-full bg-ink px-4 font-black text-paper" onClick={() => void save()}>Save item</button>
             <button className="tap rounded-full bg-mist px-4 font-black" onClick={() => setEditing(blank(vendor.id))}>New</button>
           </div>
         </div>
@@ -137,7 +163,22 @@ export function MenuClient() {
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => setEditing(item)} className="tap flex-1 rounded-full bg-ink px-4 font-bold text-paper">Edit</button>
-                  <button onClick={() => { deleteMenuItem(item.id); setState(loadState()); setNotice("Menu item deleted."); window.setTimeout(() => setNotice(""), 2200); }} className="tap rounded-full bg-tomato px-4 text-white"><Trash2 size={18} /></button>
+                  <button
+                    onClick={async () => {
+                      if (cloudMode) {
+                        await deleteCloudMenuItem(item.id);
+                        await refreshCloud();
+                      } else {
+                        deleteMenuItem(item.id);
+                        setState(loadState());
+                      }
+                      setNotice("Menu item deleted.");
+                      window.setTimeout(() => setNotice(""), 2200);
+                    }}
+                    className="tap rounded-full bg-tomato px-4 text-white"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </article>
             );

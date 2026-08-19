@@ -29,7 +29,7 @@ The app includes a browser-storage demo mode, so the main flow works before Supa
 
 1. Create a Supabase project.
 2. Open the SQL editor.
-3. Run `supabase/schema.sql`.
+3. Run `supabase/safe-setup.sql` in the SQL editor. It is safe to rerun while setting up.
 4. Create a vendor user in Supabase Auth.
 5. Copy `.env.example` to `.env.local`.
 6. Add your Supabase project URL, anon key, and service-role key.
@@ -82,7 +82,9 @@ The `place_order` Postgres function locks the relevant pickup slot and menu rows
 
 ## Editable vendor content
 
-In demo mode, uploaded images are stored in browser storage as data URLs so the full flow works immediately. In production, store item photos, vendor photos, and DuitNow QR images in Supabase Storage, then save the public URL in `menu_items.image_url`, `vendors.logo_url`, or `vendors.duitnow_qr_url`.
+When Supabase environment variables are configured, menu data, vendor content, orders, pickup slots, and uploaded images are stored in Supabase. The app falls back to browser-storage demo mode only when Supabase is not configured.
+
+Create a public Supabase Storage bucket named `campuspick` for item photos, vendor photos, and DuitNow QR images. The server upload route stores images in that bucket and saves public URLs in `menu_items.image_url`, `vendors.logo_url`, or `vendors.duitnow_qr_url`.
 
 ## Vercel deployment
 
