@@ -63,7 +63,7 @@ export function updateCloudOrderStatus(orderId: string, status: OrderStatus) {
 }
 
 export function lookupCloudOrder(input: { orderId?: string; orderNumber?: string; phoneLast4?: string }) {
-  return jsonRequest<{ order: Order; vendor: Vendor }>("/api/order-lookup", input);
+  return jsonRequest<{ order?: Order; orders?: Order[]; vendor: Vendor }>("/api/order-lookup", input);
 }
 
 export function cancelCloudOrder(orderId: string, phoneLast4: string) {

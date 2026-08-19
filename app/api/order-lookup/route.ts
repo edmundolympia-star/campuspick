@@ -7,11 +7,14 @@ export async function POST(request: Request) {
   if (!supabase) return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
 
   const { orderId, orderNumber, phoneLast4 } = await request.json();
-  let query = supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(1);
+  if (!orderId && !/^\d{4}$/.test(phoneLast4 ?? "")) {
+    return NextResponse.json({ error: "Phone last 4 digits are required." }, { status: 400 });
+  }
+
+  let query = supabase.from("orders").select("*, order_items(*)").order("order_date", { ascending: false }).order("pickup_time", { ascending: false }).limit(orderNumber || orderId ? 1 : 10);
   if (orderId) query = query.eq("id", orderId);
   if (orderNumber) query = query.ilike("order_number", orderNumber.trim());
   if (phoneLast4) query = query.eq("phone_last4", phoneLast4);
-  if (!orderId && !orderNumber) return NextResponse.json({ error: "Order number is required." }, { status: 400 });
 
   const { data: orderRows, error: orderError } = await query;
   if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 });
@@ -29,19 +32,19 @@ export async function POST(request: Request) {
     const item = toMenuItem(row);
     return [item.id, item];
   }));
-  const order: Order = {
-    id: orderRow.id,
-    vendorId: orderRow.vendor_id,
-    orderNumber: orderRow.order_number,
-    customerName: orderRow.customer_name,
-    phoneLast4: orderRow.phone_last4,
-    pickupTime: String(orderRow.pickup_time).slice(0, 5),
-    pickupDate: orderRow.order_date,
-    paymentMethod: orderRow.payment_method,
-    status: orderRow.status,
-    totalAmount: Number(orderRow.total_amount),
-    createdAt: orderRow.created_at,
-    items: (orderRow.order_items ?? []).map((line: any): OrderItem => {
+  const toOrder = (row: any): Order => ({
+    id: row.id,
+    vendorId: row.vendor_id,
+    orderNumber: row.order_number,
+    customerName: row.customer_name,
+    phoneLast4: row.phone_last4,
+    pickupTime: String(row.pickup_time).slice(0, 5),
+    pickupDate: row.order_date,
+    paymentMethod: row.payment_method,
+    status: row.status,
+    totalAmount: Number(row.total_amount),
+    createdAt: row.created_at,
+    items: (row.order_items ?? []).map((line: any): OrderItem => {
       const item = menuById.get(line.menu_item_id);
       return {
         id: line.id,
@@ -53,7 +56,8 @@ export async function POST(request: Request) {
         unitPrice: Number(line.unit_price)
       };
     })
-  };
+  });
+  const orders = (orderRows ?? []).map(toOrder);
 
-  return NextResponse.json({ order, vendor: toVendor(vendorRow) });
+  return NextResponse.json({ order: orders[0], orders, vendor: toVendor(vendorRow) });
 }

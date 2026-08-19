@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { findOrderByNumber, loadState } from "@/lib/demo-store";
+import { findOrderByNumber, findOrdersByPhone, loadState } from "@/lib/demo-store";
 import { lookupCloudOrder } from "@/lib/cloud-client";
 import { formatMoney } from "@/lib/demo-data";
 import { formatPickupDate } from "@/lib/order-dates";
@@ -11,29 +11,29 @@ import type { Order, Vendor } from "@/lib/types";
 export function OrderSearchClient() {
   const [orderNumber, setOrderNumber] = useState("");
   const [phoneLast4, setPhoneLast4] = useState("");
-  const [order, setOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [vendor, setVendor] = useState<Vendor | undefined>();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function search() {
     setMessage("");
-    setOrder(null);
-    if (!orderNumber.trim()) return setMessage("请输入订单号。");
+    setOrders([]);
     if (!/^\d{4}$/.test(phoneLast4)) return setMessage("请输入手机号码最后 4 位。");
     setLoading(true);
     try {
       try {
-        const result = await lookupCloudOrder({ orderNumber, phoneLast4 });
-        setOrder(result.order);
+        const result = await lookupCloudOrder({ orderNumber: orderNumber.trim() || undefined, phoneLast4 });
+        setOrders(result.orders ?? (result.order ? [result.order] : []));
         setVendor(result.vendor);
         return;
       } catch {
-        const found = findOrderByNumber(orderNumber, phoneLast4);
-        if (!found) throw new Error("找不到订单，请检查订单号和手机后 4 位。");
+        const found = orderNumber.trim() ? findOrderByNumber(orderNumber, phoneLast4) : null;
+        const fallbackOrders = found ? [found] : findOrdersByPhone(phoneLast4);
+        if (!fallbackOrders.length) throw new Error("找不到订单，请检查手机后 4 位。");
         const state = loadState();
-        setOrder(found);
-        setVendor(state.vendors.find((item) => item.id === found.vendorId));
+        setOrders(fallbackOrders);
+        setVendor(state.vendors.find((item) => item.id === fallbackOrders[0].vendorId));
       }
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "查询失败，请重试。");
@@ -49,7 +49,7 @@ export function OrderSearchClient() {
       <section className="mt-5 space-y-3 rounded-[28px] bg-white p-5 shadow-soft">
         <input
           className="tap w-full rounded-2xl border border-line bg-white px-4 outline-none focus:border-ink"
-          placeholder="订单号，例如 RB001"
+          placeholder="订单号，例如 RB001（可不填）"
           value={orderNumber}
           onChange={(event) => setOrderNumber(event.target.value.toUpperCase())}
         />
@@ -67,28 +67,33 @@ export function OrderSearchClient() {
         {message && <p className="rounded-2xl bg-tomato/10 px-4 py-3 text-sm font-bold text-tomato">{message}</p>}
       </section>
 
-      {order && (
-        <section className="mt-4 rounded-[28px] bg-white p-5 shadow-soft">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-neutral-500">{vendor?.name ?? "CampusPick"}</p>
-              <h2 className="text-3xl font-black">{order.orderNumber}</h2>
-            </div>
-            <span className="rounded-full bg-wasabi px-3 py-1 text-sm font-black capitalize">{order.status}</span>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-2xl bg-mist p-3">
-              <p className="text-neutral-500">取餐时间</p>
-              <strong>{formatPickupDate(order.pickupDate)} {order.pickupTime}</strong>
-            </div>
-            <div className="rounded-2xl bg-mist p-3">
-              <p className="text-neutral-500">金额</p>
-              <strong>{formatMoney(order.totalAmount)}</strong>
-            </div>
-          </div>
-          <Link href={`/order/${order.id}`} className="tap mt-4 flex w-full items-center justify-center rounded-full bg-ink px-5 py-4 font-bold text-paper">
-            查看详情 / 取消订单
-          </Link>
+      {orders.length > 0 && (
+        <section className="mt-4 space-y-3">
+          <p className="px-1 text-sm font-bold text-neutral-500">找到 {orders.length} 张订单</p>
+          {orders.map((order) => (
+            <article key={order.id} className="rounded-[28px] bg-white p-5 shadow-soft">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-neutral-500">{vendor?.name ?? "CampusPick"}</p>
+                  <h2 className="text-3xl font-black">{order.orderNumber}</h2>
+                </div>
+                <span className="rounded-full bg-wasabi px-3 py-1 text-sm font-black capitalize">{order.status}</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-2xl bg-mist p-3">
+                  <p className="text-neutral-500">取餐时间</p>
+                  <strong>{formatPickupDate(order.pickupDate)} {order.pickupTime}</strong>
+                </div>
+                <div className="rounded-2xl bg-mist p-3">
+                  <p className="text-neutral-500">金额</p>
+                  <strong>{formatMoney(order.totalAmount)}</strong>
+                </div>
+              </div>
+              <Link href={`/order/${order.id}`} className="tap mt-4 flex w-full items-center justify-center rounded-full bg-ink px-5 py-4 font-bold text-paper">
+                查看详情 / 取消订单
+              </Link>
+            </article>
+          ))}
         </section>
       )}
 

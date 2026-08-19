@@ -60,6 +60,13 @@ export function findOrderByNumber(orderNumber: string, phoneLast4: string) {
   );
 }
 
+export function findOrdersByPhone(phoneLast4: string) {
+  const state = loadState();
+  return state.orders
+    .filter((order) => order.phoneLast4 === phoneLast4)
+    .sort((a, b) => `${b.pickupDate} ${b.pickupTime}`.localeCompare(`${a.pickupDate} ${a.pickupTime}`));
+}
+
 export function remainingForItem(state: DemoState, item: MenuItem, pickupDate?: string) {
   const reserved = activeOrders(state, item.vendorId, pickupDate)
     .flatMap((order) => order.items)
