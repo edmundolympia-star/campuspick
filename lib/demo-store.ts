@@ -45,6 +45,15 @@ export function findOrder(orderId: string) {
   return state.orders.find((order) => order.id === orderId) ?? null;
 }
 
+export function findOrderByNumber(orderNumber: string, phoneLast4: string) {
+  const state = loadState();
+  return (
+    state.orders.find(
+      (order) => order.orderNumber.toLowerCase() === orderNumber.trim().toLowerCase() && order.phoneLast4 === phoneLast4
+    ) ?? null
+  );
+}
+
 export function remainingForItem(state: DemoState, item: MenuItem) {
   const reserved = activeOrders(state, item.vendorId)
     .flatMap((order) => order.items)
@@ -117,6 +126,19 @@ export function createOrder(input: {
 export function updateOrderStatus(orderId: string, status: OrderStatus) {
   const state = loadState();
   state.orders = state.orders.map((order) => (order.id === orderId ? { ...order, status } : order));
+  saveState(state);
+}
+
+export function cancelOrder(orderId: string, phoneLast4: string) {
+  const state = loadState();
+  const order = state.orders.find((item) => item.id === orderId);
+  if (!order) throw new Error("找不到订单。");
+  if (order.phoneLast4 !== phoneLast4) throw new Error("手机号码后 4 位不正确。");
+  if (order.status !== "pending") throw new Error("这个订单已经在处理，不能取消。");
+  if (Date.now() - new Date(order.createdAt).getTime() > 30 * 60 * 1000) {
+    throw new Error("已超过 30 分钟，不能取消。");
+  }
+  state.orders = state.orders.map((item) => (item.id === orderId ? { ...item, status: "cancelled" } : item));
   saveState(state);
 }
 

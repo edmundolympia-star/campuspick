@@ -1,6 +1,6 @@
 "use client";
 
-import type { DemoState, MenuItem, OrderStatus, PickupSlot, Vendor } from "./types";
+import type { DemoState, MenuItem, Order, OrderStatus, PickupSlot, Vendor } from "./types";
 
 export type CloudStateResponse = {
   mode: "cloud" | "demo";
@@ -60,4 +60,12 @@ export function createCloudOrder(input: {
 
 export function updateCloudOrderStatus(orderId: string, status: OrderStatus) {
   return jsonRequest<{ ok: true }>("/api/order-status", { orderId, status });
+}
+
+export function lookupCloudOrder(input: { orderId?: string; orderNumber?: string; phoneLast4?: string }) {
+  return jsonRequest<{ order: Order; vendor: Vendor }>("/api/order-lookup", input);
+}
+
+export function cancelCloudOrder(orderId: string, phoneLast4: string) {
+  return jsonRequest<{ ok: true }>("/api/order-cancel", { orderId, phoneLast4 });
 }

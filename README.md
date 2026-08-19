@@ -70,6 +70,7 @@ The `place_order` Postgres function locks the relevant pickup slot and menu rows
 - `/dashboard/menu`: create, edit, disable, sell out, and delete menu items
 - `/dashboard/settings`: edit vendor info, upload vendor/DuitNow QR images, and manage pickup slots
 - `/dashboard/qr`: print-ready vendor QR poster
+- `/order`: student order lookup by order number and phone last 4 digits
 - `/order/[id]`: student order summary page for reopening a placed order
 
 ## Demo checklist
@@ -77,13 +78,15 @@ The `place_order` Postgres function locks the relevant pickup slot and menu rows
 1. Open `/vendor/riceball-campus`.
 2. Choose quantities, pickup time, name, phone last 4 digits, and payment method.
 3. Confirm preorder and copy the order number.
-4. Open `/dashboard`.
-5. Confirm the order appears under the selected pickup time.
-6. Mark it Ready, then Collected.
-7. Open `/dashboard/menu` and edit stock or availability.
-8. Open `/dashboard/settings` and change pickup-slot capacity.
-9. Download the vendor QR from `/dashboard`.
-10. Open `/dashboard/qr` to print a stall poster.
+4. Open `/order` and search using the order number and phone last 4 digits.
+5. Cancel the order from the order detail page within 30 minutes while it is still pending.
+6. Open `/dashboard`.
+7. Confirm the order appears under the selected pickup time.
+8. Mark it Ready, then Collected.
+9. Open `/dashboard/menu` and edit stock or availability.
+10. Open `/dashboard/settings` and change pickup-slot capacity.
+11. Download the vendor QR from `/dashboard`.
+12. Open `/dashboard/qr` to print a stall poster.
 
 ## Editable vendor content
 

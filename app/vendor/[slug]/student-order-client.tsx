@@ -120,6 +120,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
             <strong>{formatMoney(order.totalAmount)}</strong>
           </div>
           <p className="mt-3 text-sm text-neutral-500">Phone ending {order.phoneLast4}</p>
+          <p className="mt-2 text-sm font-bold text-matcha">下单后 30 分钟内可在订单详情页取消。</p>
         </section>
         {order.paymentMethod === "duitnow" && (
           <section className="mt-4 rounded-[28px] bg-ink p-5 text-paper">
@@ -144,7 +145,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
           再下一单
         </button>
         <Link href={`/order/${order.id}`} className="tap mt-3 flex w-full items-center justify-center rounded-full bg-mist px-5 py-4 font-bold text-ink">
-          查看订单详情
+          查看订单详情 / 取消订单
         </Link>
       </main>
     );
@@ -231,7 +232,7 @@ export function StudentOrderClient({ slug }: { slug: string }) {
         <input className="tap w-full rounded-2xl border border-line bg-white px-4 outline-none focus:border-ink" placeholder="姓名" value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
         <input className="tap w-full rounded-2xl border border-line bg-white px-4 outline-none focus:border-ink" placeholder="手机号码最后 4 位" inputMode="numeric" maxLength={4} value={phoneLast4} onChange={(event) => setPhoneLast4(event.target.value.replace(/\D/g, ""))} />
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => setPaymentMethod("pickup")} className={`tap rounded-2xl border px-3 font-bold ${paymentMethod === "pickup" ? "border-ink bg-ink text-paper" : "border-line bg-white"}`}>到店付款</button>
+          <button onClick={() => setPaymentMethod("pickup")} className={`tap rounded-2xl border px-3 font-bold ${paymentMethod === "pickup" ? "border-ink bg-ink text-paper" : "border-line bg-white"}`}>取餐现金付款</button>
           <button onClick={() => setPaymentMethod("duitnow")} className={`tap rounded-2xl border px-3 font-bold ${paymentMethod === "duitnow" ? "border-ink bg-ink text-paper" : "border-line bg-white"}`}>DuitNow QR</button>
         </div>
         {error && <p className="rounded-2xl bg-tomato/10 px-4 py-3 text-sm font-bold text-tomato">{error}</p>}
